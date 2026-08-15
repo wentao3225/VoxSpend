@@ -1,0 +1,20 @@
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Isar 生成文件保留，其他生成文件忽略
+*.freezed.dart
+
+# 平台
+ios/Pods/
+ios/.symlinks/
+local.properties
