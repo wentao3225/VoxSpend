@@ -35,7 +35,7 @@ async function chatCompletion(opts: {
   userPrompt: string
   timeout?: number
 }): Promise<string> {
-  const { model, systemPrompt, userPrompt, timeout = 10000 } = opts
+  const { model, systemPrompt, userPrompt, timeout = 30000 } = opts
   const apiKey = getApiKey()
   try {
     const controller = new AbortController()

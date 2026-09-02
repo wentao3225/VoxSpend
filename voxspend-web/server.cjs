@@ -24,6 +24,9 @@ app.post('/api/v1/chat/completions', (req, res) => {
   }
 
   const body = JSON.stringify(req.body);
+  console.log(`[proxy] ${req.body.model} → ${TARGET_HOST}`);
+  const startTime = Date.now();
+
   const options = {
     hostname: TARGET_HOST,
     port: 443,
@@ -34,11 +37,17 @@ app.post('/api/v1/chat/completions', (req, res) => {
       'Authorization': `Bearer ${API_KEY}`,
       'Content-Length': Buffer.byteLength(body),
     },
+    timeout: 60000,
   };
 
   const proxyReq = https.request(options, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, proxyRes.headers);
-    proxyRes.pipe(res);
+    let resBody = '';
+    proxyRes.on('data', chunk => resBody += chunk);
+    proxyRes.on('end', () => {
+      console.log(`[proxy] ${req.body.model} → ${proxyRes.statusCode} (${Date.now() - startTime}ms)`);
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      res.end(resBody);
+    });
   });
 
   proxyReq.on('error', (e) => {
