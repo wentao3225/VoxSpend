@@ -1,17 +1,13 @@
 export const AI_API_URL = '/api/v1/chat/completions'
 
 export const PARSE_MODELS = [
-  { key: 'sensenova-6.7-flash-lite', name: 'SenseNova 6.7 Flash Lite' },
-  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-  { key: 'glm-5.2', name: 'GLM 5.2' },
   { key: 'sensenova-6.8-flash-lite', name: 'SenseNova 6.8 Flash Lite' },
+  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
 ] as const
 
 export const REPORT_MODELS = [
-  { key: 'sensenova-6.7-flash-lite', name: 'SenseNova 6.7 Flash Lite' },
-  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
-  { key: 'glm-5.2', name: 'GLM 5.2' },
   { key: 'sensenova-6.8-flash-lite', name: 'SenseNova 6.8 Flash Lite' },
+  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
 ] as const
 
 export type ModelKey = (typeof PARSE_MODELS)[number]['key']
@@ -28,7 +24,7 @@ export function loadModelConfig(): ModelConfig {
   if (raw) {
     try { return JSON.parse(raw) } catch {}
   }
-  return { parseModel: 'sensenova-6.7-flash-lite', reportModel: 'sensenova-6.8-flash-lite' }
+  return { parseModel: 'sensenova-6.8-flash-lite', reportModel: 'sensenova-6.8-flash-lite' }
 }
 
 export function saveModelConfig(config: ModelConfig) {
