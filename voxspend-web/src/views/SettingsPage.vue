@@ -1,51 +1,29 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import type { AIConfig } from '../models/ai-config'
-import { AI_PROVIDERS, getDefaultConfig, getProviderInfo } from '../models/ai-config'
-import { loadAIConfig, saveAIConfig } from '../db'
+import type { ModelConfig, ModelKey } from '../models/ai-config'
+import { PARSE_MODELS, REPORT_MODELS, loadModelConfig, saveModelConfig, getModelName } from '../models/ai-config'
 import PageHeader from '../components/PageHeader.vue'
 
 const router = useRouter()
-const config = ref<AIConfig>(getDefaultConfig())
-const showProviderPicker = ref(false)
-const editingField = ref<string | null>(null)
-const editValue = ref('')
+const config = ref<ModelConfig>(loadModelConfig())
+const showParsePicker = ref(false)
+const showReportPicker = ref(false)
 
 onMounted(() => {
-  const saved = loadAIConfig()
-  if (saved) config.value = saved
+  config.value = loadModelConfig()
 })
 
-function maskKey(key: string) {
-  if (key.length <= 8) return '****'
-  return `${key.slice(0, 4)}****${key.slice(-4)}`
+function setParseModel(key: ModelKey) {
+  config.value.parseModel = key
+  saveModelConfig(config.value)
+  showParsePicker.value = false
 }
 
-function changeProvider(p: string) {
-  const info = getProviderInfo(p)
-  config.value.provider = p
-  config.value.modelName = info.defaultModel
-  if (p !== 'custom') config.value.apiUrl = undefined
-  save()
-  showProviderPicker.value = false
-}
-
-function editField(field: string) {
-  editingField.value = field
-  editValue.value = (config.value as any)[field] ?? ''
-}
-
-function saveEdit() {
-  if (editingField.value) {
-    (config.value as any)[editingField.value] = editValue.value
-    save()
-  }
-  editingField.value = null
-}
-
-function save() {
-  saveAIConfig(config.value)
+function setReportModel(key: ModelKey) {
+  config.value.reportModel = key
+  saveModelConfig(config.value)
+  showReportPicker.value = false
 }
 </script>
 
@@ -53,32 +31,20 @@ function save() {
   <div class="page">
     <PageHeader title="我的" />
     <div class="page-content">
-      <!-- AI Config -->
+      <!-- Model Config -->
       <div class="settings-section">
-        <div class="settings-section-title">AI 服务配置</div>
+        <div class="settings-section-title">AI 模型配置</div>
         <div class="card">
-          <button class="settings-item" @click="showProviderPicker = true">
-            <span class="icon">✨</span>
-            <span class="label">AI 平台</span>
-            <span class="value">{{ getProviderInfo(config.provider).name }}</span>
+          <button class="settings-item" @click="showParsePicker = true">
+            <span class="icon">🔍</span>
+            <span class="label">解析模型</span>
+            <span class="value">{{ getModelName(config.parseModel) }}</span>
             <span class="arrow">›</span>
           </button>
-          <button class="settings-item" @click="editField('apiKey')">
-            <span class="icon">🔒</span>
-            <span class="label">API Key</span>
-            <span class="value">{{ config.apiKey ? maskKey(config.apiKey) : '未设置' }}</span>
-            <span class="arrow">›</span>
-          </button>
-          <button class="settings-item" @click="editField('modelName')">
-            <span class="icon">📦</span>
-            <span class="label">模型名称</span>
-            <span class="value">{{ config.modelName || '未设置' }}</span>
-            <span class="arrow">›</span>
-          </button>
-          <button v-if="config.provider === 'custom'" class="settings-item" @click="editField('apiUrl')">
-            <span class="icon">🔗</span>
-            <span class="label">API 地址</span>
-            <span class="value">{{ config.apiUrl || '未设置' }}</span>
+          <button class="settings-item" @click="showReportPicker = true">
+            <span class="icon">📊</span>
+            <span class="label">周报模型</span>
+            <span class="value">{{ getModelName(config.reportModel) }}</span>
             <span class="arrow">›</span>
           </button>
         </div>
@@ -115,48 +81,45 @@ function save() {
 
       <p style="font-size:12px; color:var(--text-secondary); line-height:1.6; padding:0 8px">
         所有账单数据仅存储在本机，不上传任何服务器。
-        AI 解析与周报生成会将脱敏文本发送至你配置的 AI 服务。
+        AI 服务由商汤日日新提供，API Key 通过环境变量配置。
       </p>
     </div>
 
-    <!-- Provider Picker Modal -->
-    <div v-if="showProviderPicker" class="modal-overlay" @click.self="showProviderPicker = false">
+    <!-- Parse Model Picker -->
+    <div v-if="showParsePicker" class="modal-overlay" @click.self="showParsePicker = false">
       <div class="modal-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
-          <span style="font-weight:600">选择 AI 平台</span>
-          <button style="background:none; border:none; font-size:20px; cursor:pointer" @click="showProviderPicker = false">✕</button>
+          <span style="font-weight:600">选择解析模型</span>
+          <button style="background:none; border:none; font-size:20px; cursor:pointer" @click="showParsePicker = false">✕</button>
         </div>
         <button
-          v-for="p in AI_PROVIDERS"
-          :key="p.key"
+          v-for="m in PARSE_MODELS"
+          :key="m.key"
           class="settings-item"
-          @click="changeProvider(p.key)"
+          @click="setParseModel(m.key)"
         >
-          <span class="label">{{ p.name }}</span>
-          <span v-if="config.provider === p.key" style="color:var(--primary)">✓</span>
+          <span class="label">{{ m.name }}</span>
+          <span v-if="config.parseModel === m.key" style="color:var(--primary)">✓</span>
         </button>
       </div>
     </div>
 
-    <!-- Edit Dialog -->
-    <div v-if="editingField" class="dialog-overlay" @click.self="editingField = null">
-      <div class="dialog">
-        <div class="dialog-title">
-          {{ editingField === 'apiKey' ? 'API Key' : editingField === 'modelName' ? '模型名称' : 'API 地址' }}
+    <!-- Report Model Picker -->
+    <div v-if="showReportPicker" class="modal-overlay" @click.self="showReportPicker = false">
+      <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px">
+          <span style="font-weight:600">选择周报模型</span>
+          <button style="background:none; border:none; font-size:20px; cursor:pointer" @click="showReportPicker = false">✕</button>
         </div>
-        <div class="dialog-body">
-          <input
-            v-model="editValue"
-            :type="editingField === 'apiKey' ? 'password' : 'text'"
-            :placeholder="editingField === 'apiUrl' ? 'https://api.example.com/v1/chat/completions' : ''"
-            style="width:100%; padding:8px; border:1px solid var(--separator); border-radius:8px; font-size:14px; outline:none"
-            @keyup.enter="saveEdit"
-          />
-        </div>
-        <div class="dialog-actions">
-          <button @click="editingField = null">取消</button>
-          <button class="bold" @click="saveEdit">保存</button>
-        </div>
+        <button
+          v-for="m in REPORT_MODELS"
+          :key="m.key"
+          class="settings-item"
+          @click="setReportModel(m.key)"
+        >
+          <span class="label">{{ m.name }}</span>
+          <span v-if="config.reportModel === m.key" style="color:var(--primary)">✓</span>
+        </button>
       </div>
     </div>
   </div>

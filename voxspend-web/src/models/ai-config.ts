@@ -1,27 +1,40 @@
-export interface AIConfig {
-  provider: string
-  apiKey: string
-  modelName: string
-  apiUrl?: string
-}
+export const AI_API_URL = 'https://api.sensenova.cn/compatible-mode/v1/chat/completions'
 
-export const AI_PROVIDERS = [
-  { key: 'deepseek', name: 'DeepSeek', defaultModel: 'deepseek-chat', defaultUrl: 'https://api.deepseek.com/v1/chat/completions' },
-  { key: 'bailian', name: '阿里云百炼', defaultModel: 'qwen-plus', defaultUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions' },
-  { key: 'sensechat', name: '商汤日日新', defaultModel: 'SenseChat-5', defaultUrl: 'https://api.sensenova.cn/compatible-mode/v1/chat/completions' },
-  { key: 'custom', name: '自定义 OpenAI 兼容', defaultModel: '', defaultUrl: '' },
+export const PARSE_MODELS = [
+  { key: 'sensenova-6.7-flash-lite', name: 'SenseNova 6.7 Flash Lite' },
+  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  { key: 'glm-5.2', name: 'GLM 5.2' },
+  { key: 'sensenova-6.8-flash-lite', name: 'SenseNova 6.8 Flash Lite' },
 ] as const
 
-export function getDefaultConfig(): AIConfig {
-  return { provider: 'deepseek', apiKey: '', modelName: 'deepseek-chat' }
+export const REPORT_MODELS = [
+  { key: 'sensenova-6.7-flash-lite', name: 'SenseNova 6.7 Flash Lite' },
+  { key: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+  { key: 'glm-5.2', name: 'GLM 5.2' },
+  { key: 'sensenova-6.8-flash-lite', name: 'SenseNova 6.8 Flash Lite' },
+] as const
+
+export type ModelKey = (typeof PARSE_MODELS)[number]['key']
+
+export interface ModelConfig {
+  parseModel: ModelKey
+  reportModel: ModelKey
 }
 
-export function isConfigReady(config: AIConfig): boolean {
-  if (!config.apiKey || !config.modelName) return false
-  if (config.provider === 'custom') return !!config.apiUrl
-  return true
+const SETTINGS_KEY = 'voxspend_model_config'
+
+export function loadModelConfig(): ModelConfig {
+  const raw = localStorage.getItem(SETTINGS_KEY)
+  if (raw) {
+    try { return JSON.parse(raw) } catch {}
+  }
+  return { parseModel: 'sensenova-6.7-flash-lite', reportModel: 'sensenova-6.8-flash-lite' }
 }
 
-export function getProviderInfo(provider: string) {
-  return AI_PROVIDERS.find(p => p.key === provider) ?? AI_PROVIDERS[0]
+export function saveModelConfig(config: ModelConfig) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(config))
+}
+
+export function getModelName(key: ModelKey): string {
+  return [...PARSE_MODELS].find(m => m.key === key)?.name ?? key
 }

@@ -3,8 +3,9 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Transaction } from '../models/transaction'
 import { normalizeDate } from '../models/transaction'
-import { getTransactionsByDate, loadAIConfig, getWeeklyReport, saveWeeklyReport } from '../db'
+import { getTransactionsByDate, getWeeklyReport, saveWeeklyReport } from '../db'
 import { generateAiSummary } from '../services/ai-service'
+import { useAIConfig } from '../composables/useAIConfig'
 import { formatCurrency } from '../utils/format'
 import { useTransactionNavigation } from '../composables/useTransactionNavigation'
 import TransactionItem from '../components/TransactionItem.vue'
@@ -12,6 +13,7 @@ import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
 const { goDetail } = useTransactionNavigation()
+const { config } = useAIConfig()
 const transactions = ref<Transaction[]>([])
 const todayTotal = ref(0)
 
@@ -22,8 +24,6 @@ async function loadToday() {
 }
 
 async function checkWeeklyReport() {
-  const config = loadAIConfig()
-  if (!config?.apiKey) return
   const now = new Date()
   const day = now.getDay()
   if (day !== 1) return
@@ -41,7 +41,7 @@ async function checkWeeklyReport() {
     const total = items.reduce((s, t) => s + t.amount, 0)
     const breakdown: Record<string, number> = {}
     items.forEach(t => { breakdown[t.category] = (breakdown[t.category] ?? 0) + t.amount })
-    const aiSummary = await generateAiSummary(total, breakdown, config)
+    const aiSummary = await generateAiSummary(total, breakdown, config.reportModel)
     const report = {
       weekStartDate: weekStart,
       weekEndDate: normalizeDate(end),

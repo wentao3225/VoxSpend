@@ -9,7 +9,7 @@ import PageHeader from '../components/PageHeader.vue'
 import LoadingButton from '../components/LoadingButton.vue'
 
 const router = useRouter()
-const { isReady } = useAIConfig()
+const { config, isReady } = useAIConfig()
 const { pickDate } = useDatePicker()
 const input = ref('')
 const selectedDate = ref(new Date())
@@ -30,14 +30,13 @@ async function doParse() {
     return
   }
   if (!isReady) {
-    errorMsg.value = '请先在「我的」页面配置 AI 服务'
+    errorMsg.value = '请先在 .env 文件中配置 VITE_AI_API_KEY'
     return
   }
   parsing.value = true
   errorMsg.value = ''
   try {
-    const config = (await import('../db')).loadAIConfig()
-    const txs = await parseTransactions(input.value.trim(), selectedDate.value, config)
+    const txs = await parseTransactions(input.value.trim(), selectedDate.value, config.parseModel)
     sessionStorage.setItem('pending_txs', JSON.stringify(txs))
     router.push('/confirm')
   } catch (e: any) {

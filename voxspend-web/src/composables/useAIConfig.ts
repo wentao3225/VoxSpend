@@ -1,9 +1,10 @@
-import { loadAIConfig } from '../db'
-import type { AIConfig } from '../models/ai-config'
+import { loadModelConfig } from '../models/ai-config'
+
+const API_KEY = import.meta.env.VITE_AI_API_KEY as string
 
 export function useAIConfig() {
-  const config = loadAIConfig()
-  const isReady = !!config?.apiKey
+  const config = loadModelConfig()
+  const isReady = !!API_KEY
 
-  return { config: config as AIConfig | null, isReady }
+  return { config, isReady }
 }

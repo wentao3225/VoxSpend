@@ -169,16 +169,4 @@ export async function getAllWeeklyReports(): Promise<WeeklyReport[]> {
   })
 }
 
-// ==================== Settings (localStorage) ====================
-
-const SETTINGS_KEY = 'voxspend_ai_config'
-
-export function loadAIConfig() {
-  const raw = localStorage.getItem(SETTINGS_KEY)
-  if (!raw) return null
-  try { return JSON.parse(raw) } catch { return null }
-}
-
-export function saveAIConfig(config: unknown) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(config))
-}
+// Settings (removed - API key via .env, model config in ai-config.ts)
