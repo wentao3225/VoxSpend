@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import type { AIConfig } from '../models/ai-config'
 import { AI_PROVIDERS, getDefaultConfig, getProviderInfo } from '../models/ai-config'
 import { loadAIConfig, saveAIConfig } from '../db'
+import PageHeader from '../components/PageHeader.vue'
 
 const router = useRouter()
 const config = ref<AIConfig>(getDefaultConfig())
@@ -50,9 +51,7 @@ function save() {
 
 <template>
   <div class="page">
-    <div class="page-header">
-      <h1>我的</h1>
-    </div>
+    <PageHeader title="我的" />
     <div class="page-content">
       <!-- AI Config -->
       <div class="settings-section">

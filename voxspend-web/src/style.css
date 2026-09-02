@@ -632,6 +632,13 @@ textarea.input-field {
   to { transform: rotate(360deg); }
 }
 
+/* Utility */
+.separator {
+  height: 0.5px;
+  background: var(--separator);
+  margin: 0 16px;
+}
+
 /* Responsive */
 @media (min-width: 500px) {
   .page-content {

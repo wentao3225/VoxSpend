@@ -2,12 +2,17 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Transaction } from '../models/transaction'
-import { CATEGORIES, CATEGORY_COLORS } from '../models/transaction'
 import { addTransactions } from '../db'
+import { validateTransaction } from '../utils/validation'
+import { formatCurrency } from '../utils/format'
+import { useAsyncAction } from '../composables/useAsyncAction'
+import PageHeader from '../components/PageHeader.vue'
+import CategoryPicker from '../components/CategoryPicker.vue'
+import LoadingButton from '../components/LoadingButton.vue'
 
 const router = useRouter()
 const items = ref<Transaction[]>([])
-const saving = ref(false)
+const { loading: saving, execute } = useAsyncAction()
 
 onMounted(() => {
   const raw = sessionStorage.getItem('pending_txs')
@@ -20,20 +25,17 @@ onMounted(() => {
 
 async function save() {
   for (let i = 0; i < items.value.length; i++) {
-    if (!items.value[i].description.trim()) {
-      alert(`第 ${i + 1} 条记录缺少消费内容`)
-      return
-    }
-    if (items.value[i].amount <= 0) {
-      alert(`第 ${i + 1} 条记录金额无效`)
+    const err = validateTransaction(items.value[i])
+    if (err) {
+      alert(`第 ${i + 1} 条记录: ${err}`)
       return
     }
   }
-  saving.value = true
-  await addTransactions(items.value)
-  saving.value = false
-  sessionStorage.removeItem('pending_txs')
-  router.replace('/')
+  await execute(async () => {
+    await addTransactions(items.value)
+    sessionStorage.removeItem('pending_txs')
+    router.replace('/')
+  })
 }
 
 function updateDesc(i: number, val: string) {
@@ -45,39 +47,25 @@ function updateAmount(i: number, val: string) {
   if (!isNaN(num)) items.value[i].amount = num
 }
 
-function setCategory(i: number, cat: string) {
-  items.value[i].category = cat
-  showPicker.value = -1
-}
-
 const showPicker = ref(-1)
 </script>
 
 <template>
   <div class="page">
-    <div class="page-header">
-      <h1>确认账单</h1>
-    </div>
+    <PageHeader title="确认账单" />
     <div class="page-content" style="padding-bottom:80px">
       <div v-for="(item, i) in items" :key="i" class="confirm-card">
         <div style="margin-bottom:8px">
           <span
             class="category-badge"
-            :style="{ background: CATEGORY_COLORS[item.category] + '20', color: CATEGORY_COLORS[item.category], cursor:'pointer' }"
+            :style="{ background: `var(--primary)`, color: 'white', cursor:'pointer' }"
             @click="showPicker = showPicker === i ? -1 : i"
           >{{ item.category }} ▾</span>
-          <div v-if="showPicker === i" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px">
-            <span
-              v-for="c in CATEGORIES"
-              :key="c"
-              class="chip"
-              :style="{
-                background: item.category === c ? CATEGORY_COLORS[c] : CATEGORY_COLORS[c] + '20',
-                color: item.category === c ? 'white' : CATEGORY_COLORS[c],
-              }"
-              @click="setCategory(i, c)"
-            >{{ c }}</span>
-          </div>
+          <CategoryPicker
+            v-if="showPicker === i"
+            :model-value="item.category"
+            @update:model-value="(v) => { items[i].category = v as string; showPicker = -1 }"
+          />
         </div>
         <input
           class="desc-input"
@@ -97,10 +85,7 @@ const showPicker = ref(-1)
           />
         </div>
       </div>
-      <button class="btn btn-primary" :disabled="saving" @click="save" style="margin-top:12px">
-        <span v-if="saving" class="spinner"></span>
-        <span v-else>保存 {{ items.length }} 条记录</span>
-      </button>
+      <LoadingButton :loading="saving" :text="`保存 ${items.length} 条记录`" style="margin-top:12px" @click="save" />
     </div>
   </div>
 </template>

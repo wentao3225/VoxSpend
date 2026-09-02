@@ -2,13 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Transaction } from '../models/transaction'
-import { CATEGORY_COLORS, normalizeDate } from '../models/transaction'
-import { getTransactionsByDate } from '../db'
-import { loadAIConfig } from '../db'
+import { normalizeDate } from '../models/transaction'
+import { getTransactionsByDate, loadAIConfig, getWeeklyReport, saveWeeklyReport } from '../db'
 import { generateAiSummary } from '../services/ai-service'
-import { getWeeklyReport, saveWeeklyReport } from '../db'
+import { formatCurrency } from '../utils/format'
+import { useTransactionNavigation } from '../composables/useTransactionNavigation'
+import TransactionItem from '../components/TransactionItem.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
+const { goDetail } = useTransactionNavigation()
 const transactions = ref<Transaction[]>([])
 const todayTotal = ref(0)
 
@@ -22,9 +25,8 @@ async function checkWeeklyReport() {
   const config = loadAIConfig()
   if (!config?.apiKey) return
   const now = new Date()
-  const day = now.getDay() // 0=Sun
-  if (day !== 1) return // only on Monday
-  // last Monday
+  const day = now.getDay()
+  if (day !== 1) return
   const lastMonday = new Date(now)
   lastMonday.setDate(now.getDate() - 7)
   const weekStart = normalizeDate(lastMonday)
@@ -49,12 +51,8 @@ async function checkWeeklyReport() {
       generatedAt: Date.now(),
     }
     await saveWeeklyReport(report)
-      router.push({ name: 'weekly-report', query: { data: JSON.stringify(report) } })
+    router.push({ name: 'weekly-report', query: { data: JSON.stringify(report) } })
   } catch {}
-}
-
-function goDetail(t: Transaction) {
-  router.push({ name: 'transaction-detail', params: { id: t.id } })
 }
 
 onMounted(() => {
@@ -72,31 +70,26 @@ onMounted(() => {
     <div class="page-content">
       <div class="total-card">
         <div class="label">今日支出</div>
-        <div class="amount">¥{{ todayTotal.toFixed(2) }}</div>
+        <div class="amount">{{ formatCurrency(todayTotal) }}</div>
       </div>
-      <div v-if="!transactions.length" class="empty-state">
-        <div class="icon">🧾</div>
-        <div class="title">今天还没有账单</div>
-        <div class="subtitle">点击下方按钮开始记一笔吧</div>
-      </div>
-      <div v-else>
-        <div
+      <EmptyState
+        v-if="!transactions.length"
+        icon="🧾"
+        title="今天还没有账单"
+        subtitle="点击下方按钮开始记一笔吧"
+      />
+      <template v-else>
+        <TransactionItem
           v-for="t in transactions"
           :key="t.id"
-          class="tx-item"
+          :category="t.category"
+          :icon="t.category"
+          :description="t.description"
+          :meta="`${t.category} · ${t.date}`"
+          :amount="t.amount"
           @click="goDetail(t)"
-        >
-          <div
-            class="tx-icon"
-            :style="{ background: CATEGORY_COLORS[t.category] + '20', color: CATEGORY_COLORS[t.category] }"
-          >{{ t.category }}</div>
-          <div class="tx-info">
-            <div class="tx-desc">{{ t.description }}</div>
-            <div class="tx-meta">{{ t.category }} · {{ t.date }}</div>
-          </div>
-          <div class="tx-amount">¥{{ t.amount.toFixed(2) }}</div>
-        </div>
-      </div>
+        />
+      </template>
     </div>
     <button class="btn btn-primary btn-fab" @click="router.push('/add')">
       <span>+</span> 记一笔

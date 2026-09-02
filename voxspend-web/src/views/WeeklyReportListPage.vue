@@ -3,6 +3,9 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { WeeklyReport } from '../models/weekly-report'
 import { getAllWeeklyReports } from '../db'
+import { formatCurrency } from '../utils/format'
+import PageHeader from '../components/PageHeader.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const router = useRouter()
 const reports = ref<WeeklyReport[]>([])
@@ -18,18 +21,15 @@ function viewReport(r: WeeklyReport) {
 
 <template>
   <div class="page">
-    <div class="page-header">
-      <button class="back-btn" @click="router.back()">← 返回</button>
-      <h1>历史周报</h1>
-      <div style="width:50px"></div>
-    </div>
+    <PageHeader title="历史周报" :show-back="true" />
     <div class="page-content">
-      <div v-if="!reports.length" class="empty-state">
-        <div class="icon">📊</div>
-        <div class="title">暂无周报</div>
-        <div class="subtitle">每周一自动生成上周消费周报</div>
-      </div>
-      <div v-else>
+      <EmptyState
+        v-if="!reports.length"
+        icon="📊"
+        title="暂无周报"
+        subtitle="每周一自动生成上周消费周报"
+      />
+      <template v-else>
         <div
           v-for="r in reports"
           :key="r.id"
@@ -41,9 +41,9 @@ function viewReport(r: WeeklyReport) {
             <div class="tx-desc">{{ r.weekStartDate }} ~ {{ r.weekEndDate }}</div>
             <div class="tx-meta">{{ r.aiSummary.slice(0, 30) }}...</div>
           </div>
-          <div class="tx-amount">¥{{ r.totalExpense.toFixed(2) }}</div>
+          <div class="tx-amount">{{ formatCurrency(r.totalExpense) }}</div>
         </div>
-      </div>
+      </template>
     </div>
   </div>
 </template>

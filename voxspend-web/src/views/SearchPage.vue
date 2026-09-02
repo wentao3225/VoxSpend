@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import type { Transaction } from '../models/transaction'
-import { CATEGORIES, CATEGORY_COLORS } from '../models/transaction'
 import { searchTransactions } from '../db'
+import { useTransactionNavigation } from '../composables/useTransactionNavigation'
+import PageHeader from '../components/PageHeader.vue'
+import TransactionItem from '../components/TransactionItem.vue'
+import EmptyState from '../components/EmptyState.vue'
+import CategoryPicker from '../components/CategoryPicker.vue'
 
-const router = useRouter()
+const { goDetail } = useTransactionNavigation()
 const keyword = ref('')
 const selectedCategories = ref<string[]>([])
 const startDate = ref('')
@@ -30,13 +33,6 @@ function doSearch() {
       maxAmount: maxAmount.value ?? undefined,
     })
   }, 500)
-}
-
-function toggleCategory(c: string) {
-  const idx = selectedCategories.value.indexOf(c)
-  if (idx >= 0) selectedCategories.value.splice(idx, 1)
-  else selectedCategories.value.push(c)
-  doSearch()
 }
 
 function resetAll() {
@@ -81,20 +77,12 @@ function pickAmountRange() {
   doSearch()
 }
 
-function goDetail(t: Transaction) {
-  router.push({ name: 'transaction-detail', params: { id: t.id } })
-}
-
 watch(keyword, () => doSearch())
 </script>
 
 <template>
   <div class="page">
-    <div class="page-header">
-      <button class="back-btn" @click="router.back()">← 返回</button>
-      <h1>搜索账单</h1>
-      <div style="width:50px"></div>
-    </div>
+    <PageHeader title="搜索账单" :show-back="true" />
     <div class="search-bar">
       <input
         v-model="keyword"
@@ -104,16 +92,7 @@ watch(keyword, () => doSearch())
       <button v-if="hasFilter" class="back-btn" @click="resetAll" style="font-size:14px">重置</button>
     </div>
     <div class="chip-row">
-      <span
-        v-for="c in CATEGORIES"
-        :key="c"
-        class="chip"
-        :style="{
-          background: selectedCategories.includes(c) ? CATEGORY_COLORS[c] : CATEGORY_COLORS[c] + '20',
-          color: selectedCategories.includes(c) ? 'white' : CATEGORY_COLORS[c],
-        }"
-        @click="toggleCategory(c)"
-      >{{ c }}</span>
+      <CategoryPicker v-model="selectedCategories" :multiple="true" @update:model-value="doSearch" />
     </div>
     <div class="filter-row">
       <button class="filter-btn" @click="pickDateRange">
@@ -123,26 +102,26 @@ watch(keyword, () => doSearch())
         💰 {{ minAmount != null || maxAmount != null ? `${minAmount ?? 0}~${maxAmount ?? '∞'}` : '金额' }}
       </button>
     </div>
-    <div style="height:0.5px; background:var(--separator); margin:0 16px"></div>
+    <div class="separator"></div>
     <div class="page-content" style="padding-top:8px">
-      <div v-if="!results.length" class="empty-state">
-        <div class="icon">🔍</div>
-        <div class="title">未找到相关账单</div>
-        <div class="subtitle">试试其他关键词或筛选条件</div>
-      </div>
-      <div v-else>
-        <div v-for="t in results" :key="t.id" class="tx-item" @click="goDetail(t)">
-          <div
-            class="tx-icon"
-            :style="{ background: CATEGORY_COLORS[t.category] + '20', color: CATEGORY_COLORS[t.category] }"
-          >{{ t.category }}</div>
-          <div class="tx-info">
-            <div class="tx-desc">{{ t.description }}</div>
-            <div class="tx-meta">{{ t.category }} · {{ t.date }}</div>
-          </div>
-          <div class="tx-amount">¥{{ t.amount.toFixed(2) }}</div>
-        </div>
-      </div>
+      <EmptyState
+        v-if="!results.length"
+        icon="🔍"
+        title="未找到相关账单"
+        subtitle="试试其他关键词或筛选条件"
+      />
+      <template v-else>
+        <TransactionItem
+          v-for="t in results"
+          :key="t.id"
+          :category="t.category"
+          :icon="t.category"
+          :description="t.description"
+          :meta="`${t.category} · ${t.date}`"
+          :amount="t.amount"
+          @click="goDetail(t)"
+        />
+      </template>
     </div>
   </div>
 </template>
