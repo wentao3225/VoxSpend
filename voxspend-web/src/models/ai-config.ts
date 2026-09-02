@@ -1,4 +1,8 @@
-export const AI_API_URL = 'https://api.sensenova.cn/compatible-mode/v1/chat/completions'
+const TARGET_API = 'https://token.sensenova.cn/v1/chat/completions'
+const isDev = import.meta.env.DEV
+export const AI_API_URL = isDev
+  ? `https://corsproxy.io/?url=${encodeURIComponent(TARGET_API)}`
+  : TARGET_API
 
 export const PARSE_MODELS = [
   { key: 'sensenova-6.7-flash-lite', name: 'SenseNova 6.7 Flash Lite' },
