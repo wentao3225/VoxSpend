@@ -1,7 +1,4 @@
-const isDev = import.meta.env.DEV
-export const AI_API_URL = isDev
-  ? 'http://localhost:3001/v1/chat/completions'
-  : 'https://token.sensenova.cn/v1/chat/completions'
+export const AI_API_URL = 'https://api.sensenova.cn/compatible-mode/v1/chat/completions'
 
 export const PARSE_MODELS = [
   { key: 'sensenova-6.7-flash-lite', name: 'SenseNova 6.7 Flash Lite' },
