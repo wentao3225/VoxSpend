@@ -17,7 +17,17 @@ const { loading: saving, execute } = useAsyncAction()
 onMounted(() => {
   const raw = sessionStorage.getItem('pending_txs')
   if (raw) {
-    items.value = JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    console.log('[ConfirmPage] Parsed items:', parsed)
+    // 确保是纯对象数组，移除可能的不可克隆属性
+    items.value = parsed.map((item: any) => ({
+      description: String(item.description ?? ''),
+      amount: Number(item.amount ?? 0),
+      category: String(item.category ?? '其他'),
+      date: String(item.date ?? ''),
+      createdAt: Number(item.createdAt ?? Date.now()),
+    }))
+    console.log('[ConfirmPage] Cleaned items:', items.value)
   } else {
     router.replace('/add')
   }

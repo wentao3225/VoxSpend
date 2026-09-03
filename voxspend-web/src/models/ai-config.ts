@@ -18,13 +18,24 @@ export interface ModelConfig {
 }
 
 const SETTINGS_KEY = 'voxspend_model_config'
+// 旧默认值（sensenova 太慢不稳定），自动迁移到新默认值
+const MIGRATED_KEY = 'voxspend_model_migrated_v2'
 
 export function loadModelConfig(): ModelConfig {
   const raw = localStorage.getItem(SETTINGS_KEY)
   if (raw) {
-    try { return JSON.parse(raw) } catch {}
+    try {
+      const parsed = JSON.parse(raw) as ModelConfig
+      // 若用户用的是旧默认模型，自动迁移（只迁移一次）
+      if (!localStorage.getItem(MIGRATED_KEY) && parsed.parseModel === 'sensenova-6.8-flash-lite') {
+        parsed.parseModel = 'deepseek-v4-flash'
+        saveModelConfig(parsed)
+        localStorage.setItem(MIGRATED_KEY, '1')
+      }
+      return parsed
+    } catch {}
   }
-  return { parseModel: 'sensenova-6.8-flash-lite', reportModel: 'sensenova-6.8-flash-lite' }
+  return { parseModel: 'deepseek-v4-flash', reportModel: 'sensenova-6.8-flash-lite' }
 }
 
 export function saveModelConfig(config: ModelConfig) {

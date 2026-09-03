@@ -51,8 +51,20 @@ export async function addTransactions(items: Transaction[]): Promise<Transaction
     const store = tx.objectStore('transactions')
     const results: Transaction[] = []
     for (const item of items) {
-      const req = store.add(item)
-      req.onsuccess = () => { item.id = req.result as number; results.push(item) }
+      // 确保对象是纯数据对象，移除可能的不可克隆属性
+      // 注意：添加新记录时不传 id，让 IndexedDB 自动生成
+      const cleanItem = {
+        description: String(item.description ?? ''),
+        amount: Number(item.amount ?? 0),
+        category: String(item.category ?? '其他'),
+        date: String(item.date ?? ''),
+        createdAt: Number(item.createdAt ?? Date.now()),
+      }
+      const req = store.add(cleanItem)
+      req.onsuccess = () => { 
+        const savedItem = { ...cleanItem, id: req.result as number }
+        results.push(savedItem)
+      }
     }
     tx.oncomplete = () => resolve(results)
     tx.onerror = () => reject(tx.error)

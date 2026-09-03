@@ -35,7 +35,8 @@ async function chatCompletion(opts: {
   userPrompt: string
   timeout?: number
 }): Promise<string> {
-  const { model, systemPrompt, userPrompt, timeout = 30000 } = opts
+  // 推理模型生成较慢（实测可达 35s+），超时对齐后端代理 60s
+  const { model, systemPrompt, userPrompt, timeout = 60000 } = opts
   const apiKey = getApiKey()
   try {
     const controller = new AbortController()
@@ -60,9 +61,11 @@ async function chatCompletion(opts: {
     if (res.status === 401) throw new ParseException('API Key 无效，请检查 .env 配置')
     if (!res.ok) throw new ParseException(`AI 服务返回错误（${res.status}），请重试`)
     const body = await res.json()
+    console.log('[AI Service] Response:', JSON.stringify(body).slice(0, 500))
     const choices = body.choices as any[]
     if (!choices?.length) throw new ParseException('AI 返回内容为空，请重试')
-    const content = choices[0].content as string
+    const content = choices[0].message?.content as string
+    console.log('[AI Service] Content length:', content?.length)
     if (!content?.trim()) throw new ParseException('AI 返回内容为空，请重试')
     return content
   } catch (e) {
@@ -74,39 +77,88 @@ async function chatCompletion(opts: {
   }
 }
 
+function extractJsonList(text: string): any[] | null {
+  // 直接解析整个文本
+  try {
+    const decoded = JSON.parse(text)
+    if (Array.isArray(decoded)) return decoded
+    if (decoded && Array.isArray(decoded.transactions)) return decoded.transactions
+    // 如果返回的是单个对象，包装成数组
+    if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+      return [decoded]
+    }
+  } catch {}
+  // 兜底：从文本中截取 [ ... ] 数组片段（兼容模型输出前后附带的解释文字）
+  const start = text.indexOf('[')
+  const end = text.lastIndexOf(']')
+  if (start !== -1 && end > start) {
+    try {
+      const decoded = JSON.parse(text.slice(start, end + 1))
+      if (Array.isArray(decoded)) return decoded
+    } catch {}
+  }
+  // 兜底：从文本中截取 { ... } 对象片段（兼容模型输出单个对象）
+  const objStart = text.indexOf('{')
+  const objEnd = text.lastIndexOf('}')
+  if (objStart !== -1 && objEnd > objStart) {
+    try {
+      const decoded = JSON.parse(text.slice(objStart, objEnd + 1))
+      if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+        return [decoded]
+      }
+    } catch {}
+  }
+  // 兜底：循环解码多段 JSON，取第一段数组（兼容模型连续输出多份对象拼接）
+  try {
+    let idx = 0
+    while (idx < text.length) {
+      const slice = text.slice(idx)
+      if (slice.trimStart().startsWith('[')) {
+        const decoded = JSON.parse(slice)
+        if (Array.isArray(decoded)) return decoded
+      }
+      const match = /^\s*[\[{]/.exec(slice)
+      if (!match) break
+      const value = JSON.parse(slice)
+      if (Array.isArray(value)) return value
+      idx += JSON.stringify(value).length
+      if (idx <= 0) break
+    }
+  } catch {}
+  return null
+}
+
 function parseResponse(response: string, defaultDate: Date): Transaction[] {
   let text = response.trim()
   if (text.startsWith('```')) {
     text = text.replace(/^```(json)?/, '').trim()
     if (text.endsWith('```')) text = text.slice(0, -3).trim()
   }
-  let jsonList: any[]
-  try {
-    const decoded = JSON.parse(text)
-    if (Array.isArray(decoded)) {
-      jsonList = decoded
-    } else {
-      throw new ParseException('AI 返回格式错误，请重试')
-    }
-  } catch {
+  const jsonList = extractJsonList(text)
+  if (!jsonList) {
     throw new ParseException('AI 返回格式错误，请重试')
   }
   if (!jsonList.length) throw new ParseException('未识别到任何消费记录，请检查输入')
   const results: Transaction[] = []
   const dateStr = normalizeDate(defaultDate)
+  const baseTime = Date.now()
   for (let i = 0; i < jsonList.length; i++) {
     const item = jsonList[i]
     if (!item || typeof item !== 'object') throw new ParseException(`第 ${i + 1} 条记录格式错误`)
-    const desc = String(item.description ?? '').trim()
+    // 兼容部分模型返回中文键名（如 deepseek 可能输出"描述"/"金额"/"类别"）
+    const desc = String(item.description ?? item.描述 ?? '').trim()
+    const amountVal = item.amount ?? item.金额
+    const category = item.category ?? item.类别
     if (!desc) throw new ParseException(`第 ${i + 1} 条记录缺少消费内容`)
-    const amount = typeof item.amount === 'number' ? item.amount : parseFloat(item.amount)
+    const amount = typeof amountVal === 'number' ? amountVal : parseFloat(amountVal)
     if (!amount || amount <= 0) throw new ParseException(`第 ${i + 1} 条记录缺少金额或金额无效`)
+    // 确保每条记录有唯一的时间戳（毫秒级递增）
     results.push({
       description: desc,
       amount,
-      category: normalizeCategory(item.category),
+      category: normalizeCategory(category),
       date: dateStr,
-      createdAt: Date.now(),
+      createdAt: baseTime + i,
     })
   }
   return results
@@ -147,7 +199,7 @@ export async function generateAiSummary(
     model,
     systemPrompt: REPORT_SYSTEM_PROMPT,
     userPrompt,
-    timeout: 15000,
+    timeout: 60000,
   })
   return content.length > 150 ? content.substring(0, 150) : content
 }
