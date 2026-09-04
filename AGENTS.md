@@ -55,10 +55,10 @@ npx vue-tsc --noEmit              # 仅类型检查
 ### AI 模型
 
 仅支持商汤日日新，可用模型：
-- `sensenova-6.8-flash-lite` — 默认解析模型
-- `deepseek-v4-flash` — 备选
+- `sensenova-6.8-flash-lite` — 周报默认模型
+- `deepseek-v4-flash` — 解析默认模型（更快更稳）
 
-解析和周报使用**不同模型**，可在设置页分别选择，存储在 localStorage。
+解析和周报使用**不同模型**，可在设置页分别选择，存储在 localStorage（key `voxspend_model_config`）。`ai-config.ts` 中有自动迁移逻辑：旧默认 `sensenova` 解析模型会自动迁移到 `deepseek-v4-flash`（只迁移一次，标记 `voxspend_model_migrated_v2`）。
 
 ### PWA Service Worker
 
@@ -75,10 +75,11 @@ SPA fallback 路由必须用 `app.get('/{*splat}')`，不能用 `app.get('*')`�
 voxspend-web/
 ├── server.cjs          # Express：静态文件 + API 代理（端口 3000）
 ├── dev.cjs             # 开发启动器：同时启 Express + Vite
+├── capacitor.config.ts # Capacitor 8，appId cn.voxspend.app，webDir dist/
 ├── src/
 │   ├── main.ts         # 入口
-│   ├── App.vue         # 双 Tab 框架
-│   ├── router/index.ts # 8 个路由
+│   ├── App.vue         # 双 Tab 框架（首页 / 我的），keep-alive 缓存
+│   ├── router/index.ts # 8 个路由，全部懒加载
 │   ├── models/         # 数据模型 + AI 配置（常量、localStorage）
 │   ├── services/       # ai-service.ts（fetch 调用 AI API）
 │   ├── db/index.ts     # IndexedDB CRUD
@@ -86,11 +87,45 @@ voxspend-web/
 │   ├── components/     # 5 个可复用组件
 │   ├── composables/    # 4 个 composable
 │   ├── utils/          # format / validation / style
-│   └── style.css       # 全局样式（~645 行）
+│   └── style.css       # 全局样式（Cupertino 设计令牌）
 ├── vite.config.ts      # Vite + PWA + dev proxy
 ├── .env                # API Key（不提交）
 └── .env.example        # 模板
 ```
+
+## 数据模型
+
+**Transaction**（`models/transaction.ts`）：
+```ts
+{ id?: number, description: string, amount: number, category: string, date: string /* YYYY-MM-DD */, createdAt: number }
+```
+- `CATEGORIES` = `['餐饮','交通','购物','娱乐','居住','医疗','教育','其他']`，`CATEGORY_COLORS` 为 iOS 系统色
+- 非法类别用 `normalizeCategory()` 回退到 `'其他'`；`normalizeDate()` 输出 `YYYY-MM-DD`
+
+**WeeklyReport**（`models/weekly-report.ts`）：
+```ts
+{ id?: number, weekStartDate: string, weekEndDate: string, totalExpense: number, categoryBreakdown: Record<string, number>, aiSummary: string, generatedAt: number }
+```
+
+## IndexedDB（`db/index.ts`）
+
+- DB `voxspend` v1，单例 `dbInstance`
+- **transactions** store：keyPath `id`（autoIncrement），索引 `date`/`category`/`createdAt`
+- **weeklyReports** store：keyPath `id`（autoIncrement），索引 `weekStartDate`（**unique**）
+- 关键函数：`getTransactionsByDate`、`addTransactions`（批量，剥离不可克隆属性、不传 id）、`updateTransaction`、`deleteTransaction`、`getAllTransactions`、`searchTransactions`（内存过滤）、`getTransactionsBetween`、`getWeeklyReport`/`saveWeeklyReport`/`getAllWeeklyReports`
+
+## 跨页数据流（重要约定）
+
+- **AI 解析流程**：`AddPage.vue` → `parseTransactions()` → 存 `sessionStorage`（`pending_txs`）→ `ConfirmPage.vue` → `addTransactions()`
+- **周报流程**：`HomePage.vue` 周一自动触发 `checkWeeklyReport()` → `generateAiSummary()` → `saveWeeklyReport()` → 跳转 `WeeklyReportPage.vue`（数据经 `route.query` JSON 字符串传递）
+- 跨页传数据用 `sessionStorage` 或 `route.query`，**不要**用全局 store（项目无 Pinia）
+
+## 组件与页面约定
+
+- 所有页面用 `<script setup lang="ts">`，结构统一：`.page` → `PageHeader` → `.page-content`
+- 可复用组件：`PageHeader`（title/showBack + slots）、`LoadingButton`（loading/disabled/variant）、`TransactionItem`（列表项）、`CategoryPicker`（chips，支持 multiple）、`EmptyState`
+- 错误处理用原生 `alert()`/`confirm()`；AI 错误显示 `e.reason`（`ParseException`）
+- 搜索用 `searchTransactions()` + 500ms 防抖
 
 ## 注意事项
 
@@ -99,3 +134,6 @@ voxspend-web/
 - PWA 图标需在 `public/` 下放 `pwa-192x192.png` 和 `pwa-512x512.png`
 - 数据仅存本地（IndexedDB），无后端数据库
 - AI API 调用 60s 超时（前端 + Express 均为 60s）
+- **AI 解析健壮性**：`ai-service.ts` 的 `extractJsonList()` 有多层兜底（直接解析 → 截取 `[...]` → 截取 `{...}` → 循环解码多段 JSON），兼容中文键名（`描述`/`金额`/`类别`）；解析时每条 `createdAt = baseTime + i` 保证唯一
+- **已知坑**：部分组件 scoped style 引用了 `:root` 未定义的 CSS 变量（`--bg-secondary`、`--label-*`、`--system-green`、`--bg-card`），改动样式前先确认变量是否已定义
+- **已知坑**：Android 原生 WebView 中 `/api` 相对路径不走 Vite dev proxy 或 Express 代理，AI 调用在原生环境可能失效（除非配置服务器地址）

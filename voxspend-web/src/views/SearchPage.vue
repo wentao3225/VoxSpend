@@ -21,7 +21,7 @@ const hasFilter = ref(false)
 let debounceTimer: any = null
 
 function doSearch() {
-  hasFilter.value = !!keyword.value || selectedCategories.value.length > 0 || startDate.value || endDate.value || minAmount.value != null || maxAmount.value != null
+  hasFilter.value = Boolean(keyword.value) || selectedCategories.value.length > 0 || Boolean(startDate.value) || Boolean(endDate.value) || minAmount.value != null || maxAmount.value != null
   clearTimeout(debounceTimer)
   debounceTimer = setTimeout(async () => {
     results.value = await searchTransactions({

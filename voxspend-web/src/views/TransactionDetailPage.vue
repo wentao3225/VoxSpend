@@ -9,7 +9,6 @@ import { useAsyncAction } from '../composables/useAsyncAction'
 import { getCategoryStyle } from '../utils/style'
 import PageHeader from '../components/PageHeader.vue'
 import CategoryPicker from '../components/CategoryPicker.vue'
-import LoadingButton from '../components/LoadingButton.vue'
 
 const router = useRouter()
 const route = useRoute()

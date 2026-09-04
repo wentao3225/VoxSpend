@@ -6,7 +6,10 @@ import { normalizeCategory, normalizeDate } from '../models/transaction'
 const API_KEY = import.meta.env.VITE_AI_API_KEY as string
 
 export class ParseException {
-  constructor(public reason: string) {}
+  reason: string
+  constructor(reason: string) {
+    this.reason = reason
+  }
 }
 
 function getApiKey(): string {
