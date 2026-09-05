@@ -112,6 +112,7 @@ voxspend-web/
 
 ## 组件与页面约定
 
+- 首页（`HomePage.vue`）支持**按天浏览**：`viewDate` 状态 + `‹`/`›` 箭头切换前一天/后一天（不能切到未来），今天显示「今日账单/今日支出」，历史日期显示「账单明细/当日支出」；keep-alive 下用 `onActivated` 刷新当前查看日期的数据
 - 所有页面用 `<script setup lang="ts">`，结构统一：`.page` → `PageHeader` → `.page-content`
 - 可复用组件：`PageHeader`（title/showBack + slots）、`LoadingButton`（loading/disabled/variant）、`TransactionItem`（列表项）、`CategoryPicker`（chips，支持 multiple）、`EmptyState`、`ConfirmDialog`（确认弹窗，`v-model:visible` + `@confirm`/`@cancel`，`destructive` 红色确认按钮）
 - 错误处理用原生 `alert()`；**删除/危险操作确认用 `ConfirmDialog` 组件**（不要用原生 `confirm()`，避免浏览器原生弹窗）
