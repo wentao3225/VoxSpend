@@ -104,6 +104,14 @@ voxspend-web/
 - **weeklyReports** store：keyPath `id`（autoIncrement），索引 `weekStartDate`（**unique**）
 - 关键函数：`getTransactionsByDate`、`addTransactions`（批量，剥离不可克隆属性、不传 id）、`updateTransaction`、`deleteTransaction`、`getAllTransactions`、`searchTransactions`（内存过滤）、`getTransactionsBetween`、`getWeeklyReport`/`saveWeeklyReport`/`getAllWeeklyReports`/`deleteWeeklyReport`
 
+## 数据备份（`services/backup-service.ts`）
+
+- **导出**：IndexedDB 全量（账单+周报）序列化为 JSON → 原生写 Cache 目录 + `Share.share()` 拉起系统分享面板；浏览器走 Blob 下载。文件名 `voxspend-backup-YYYY-MM-DD.json`
+- **导入**：原生 `FilePicker.pickFiles({ readData: true })`（**base64 → `atob` → `Uint8Array` → `TextDecoder('utf-8')` 三步解码，直接 `atob` 中文必乱码**）；浏览器走 `input[type=file]`。`parseBackupData()` 逐条清洗（描述/金额/日期格式校验），确认弹窗后 `restoreBackup()` 写库
+- **合并模式**：导入是追加不是覆盖（transactions 自增 id 不冲突；weeklyReports 的 `weekStartDate` unique 索引，写入时置 `id: undefined` 走 add，重复周报会静默失败但不影响账单）
+- 插件：`@capacitor/filesystem`、`@capacitor/share`、`@capawesome/capacitor-file-picker`（均需 `npx cap sync android`）
+- 入口在设置页「数据备份」区块，结果用页面内 toast 提示（非 alert）
+
 ## 跨页数据流（重要约定）
 
 - **AI 解析流程**：`AddPage.vue` → `parseTransactions()` → 存 `sessionStorage`（`pending_txs`）→ `ConfirmPage.vue` → `addTransactions()`
