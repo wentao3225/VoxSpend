@@ -268,6 +268,7 @@ html, body {
   position: fixed;
   right: 20px;
   bottom: 90px;
+  width: auto;
   height: 56px;
   padding: 0 22px;
   border-radius: 28px;
@@ -309,6 +310,13 @@ textarea.input-field {
   font-size: 13px;
   cursor: pointer;
   color: var(--text-primary);
+}
+
+/* 搜索栏内的重置按钮：与 filter-btn 同风格，紧凑不换行 */
+.reset-btn {
+  flex-shrink: 0;
+  color: var(--primary);
+  font-weight: 500;
 }
 
 /* Category Chips */

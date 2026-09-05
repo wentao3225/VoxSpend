@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Transaction } from '../models/transaction'
 import { normalizeDate } from '../models/transaction'
@@ -58,6 +58,11 @@ async function checkWeeklyReport() {
 onMounted(() => {
   loadToday()
   checkWeeklyReport()
+})
+
+// keep-alive 缓存下从确认页返回时 onMounted 不触发，用 onActivated 刷新今日数据
+onActivated(() => {
+  loadToday()
 })
 </script>
 

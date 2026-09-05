@@ -89,7 +89,7 @@ watch(keyword, () => doSearch())
         class="search-input"
         placeholder="搜索消费描述"
       />
-      <button v-if="hasFilter" class="back-btn" @click="resetAll" style="font-size:14px">重置</button>
+      <button v-if="hasFilter" class="filter-btn reset-btn" @click="resetAll">重置</button>
     </div>
     <div class="chip-row">
       <CategoryPicker v-model="selectedCategories" :multiple="true" @update:model-value="doSearch" />
