@@ -12,7 +12,7 @@ VoxSpend — Vue 3 + Vite + TypeScript 记账应用（Capacitor 打包 Android A
 | 构建 | Vite 6 |
 | 数据库 | IndexedDB（浏览器） |
 | 打包 | Capacitor 8（Android APK） |
-| AI | 商汤日日新（`token.sensenova.cn`），OpenAI 兼容协议，前端直连 |
+| AI | Agnes（`api.agnes-ai.cn`），OpenAI 兼容协议，前端直连 |
 | 样式 | 纯 CSS，Cupertino 风格 |
 
 ## 命令
@@ -35,27 +35,26 @@ npx vue-tsc --noEmit              # 仅类型检查
 
 ### AI 请求链路（按环境分流）
 
-`token.sensenova.cn` **不支持浏览器 CORS**（OPTIONS 预检返回 404，浏览器拦截），因此按环境分流（`ai-service.ts`）：
+Agnes API 按环境分流（`ai-service.ts`）：
 
 | 环境 | 通道 | URL |
 |------|------|-----|
-| Android APK（原生） | `CapacitorHttp`（`@capacitor/core` 内置，走原生网络栈，**无 CORS 限制**） | `https://token.sensenova.cn/v1/chat/completions`（`AI_API_URL_NATIVE`） |
-| 浏览器开发 | `fetch` + Vite dev proxy | `/api/v1/chat/completions`（`AI_API_URL_WEB`）→ Vite 转发到商汤 |
+| Android APK（原生） | `CapacitorHttp`（`@capacitor/core` 内置，走原生网络栈，**无 CORS 限制**） | `https://api.agnes-ai.cn/v1/chat/completions`（`AI_API_URL_NATIVE`） |
+| 浏览器开发 | `fetch` + Vite dev proxy | `/api/v1/chat/completions`（`AI_API_URL_WEB`）→ Vite 转发到 Agnes |
 
 - 判断方式：`Capacitor.isNativePlatform()`；原生响应 `res.data` 可能是字符串，用 `safeJsonParse()` 兜底
-- Vite proxy 配置在 `vite.config.ts`（`/api` → `https://token.sensenova.cn`，rewrite 去掉 `/api` 前缀），**仅 dev server 生效**，与构建产物无关
+- Vite proxy 配置在 `vite.config.ts`（`/api` → `https://api.agnes-ai.cn`，rewrite 去掉 `/api` 前缀），**仅 dev server 生效**，与构建产物无关
 - 项目**无后端**：不需要 Express，APK 完全独立运行
 - API Key 通过 `Authorization: Bearer` 头直接发送（个人应用可接受）
 
-### AI 模型
+### AI 模型（已定死，不可配置）
 
-仅支持商汤日日新，可用模型：
-- `sensenova-6.8-flash-lite` — 周报默认模型
-- `deepseek-v4-flash` — 解析默认模型（更快更稳）
+模型固定为 **`agnes-2.5-flash`**（Agnes 2.5 Flash，OpenAI 兼容，512K 上下文），**不在设置页展示、不存 localStorage**（`ai-config.ts` 只导出 `PARSE_MODEL`/`REPORT_MODEL` 常量）：
 
-**思考模式**：`deepseek-v4-flash` 默认启用思考（响应含 `reasoning_content` 字段，拖慢速度）。请求体加 `reasoning_effort: 'none'` 关闭（可选 `low`/`medium`/`high`，默认 `medium`）。`ai-service.ts` 的 `chatCompletion()` 已统一加此参数。
+- **记账解析**：关闭思考（`chat_template_kwargs: { enable_thinking: false }`），更快更稳，输出严格 JSON
+- **周报总结**：开启思考（`enable_thinking: true`），总结更深入
 
-解析和周报使用**不同模型**，可在设置页分别选择，存储在 localStorage（key `voxspend_model_config`）。`ai-config.ts` 中有自动迁移逻辑：旧默认 `sensenova` 解析模型会自动迁移到 `deepseek-v4-flash`（只迁移一次，标记 `voxspend_model_migrated_v2`）。
+**思考模式**：Agnes 用 `chat_template_kwargs.enable_thinking` 控制（OpenAI 兼容格式）；开启时响应含 `reasoning_content` 字段，`usage.completion_tokens_details.reasoning_tokens` 计数。文档：`agnes-ai.cn/zh-Hans/docs/agnes-25-flash`
 
 ### PWA 已移除
 

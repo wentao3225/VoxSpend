@@ -1,7 +1,6 @@
 import { CapacitorHttp } from '@capacitor/core'
 import { Capacitor } from '@capacitor/core'
-import { AI_API_URL_NATIVE, AI_API_URL_WEB } from '../models/ai-config'
-import type { ModelKey } from '../models/ai-config'
+import { AI_API_URL_NATIVE, AI_API_URL_WEB, PARSE_MODEL } from '../models/ai-config'
 import type { Transaction } from '../models/transaction'
 import { normalizeCategory, normalizeDate } from '../models/transaction'
 
@@ -35,29 +34,29 @@ const PARSE_SYSTEM_PROMPT = `你是一个记账助手。请将用户的口语化
 const REPORT_SYSTEM_PROMPT = '你是一个贴心的个人消费分析助手。'
 
 async function chatCompletion(opts: {
-  model: ModelKey
   systemPrompt: string
   userPrompt: string
   timeout?: number
+  thinking?: boolean
 }): Promise<string> {
-  // 记账解析/周报是简单任务，关闭思考模式（reasoning_effort: none）提升速度
-  const { model, systemPrompt, userPrompt, timeout = 60000 } = opts
+  const { systemPrompt, userPrompt, timeout = 60000, thinking = false } = opts
   const apiKey = getApiKey()
-  const reqBody = {
-    model,
+  const reqBody: Record<string, unknown> = {
+    model: PARSE_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
     temperature: 0.2,
-    reasoning_effort: 'none',
+    // Agnes 思考模式：enable_thinking 控制开/关（解析关、周报开）
+    chat_template_kwargs: { enable_thinking: thinking },
   }
   try {
     let status: number
     let body: any
 
     if (Capacitor.isNativePlatform()) {
-      // 原生环境：CapacitorHttp 走原生网络栈，无 CORS 限制，直连商汤
+      // 原生环境：CapacitorHttp 走原生网络栈，无 CORS 限制，直连 Agnes
       const res = await CapacitorHttp.post({
         url: AI_API_URL_NATIVE,
         headers: {
@@ -182,7 +181,7 @@ function parseResponse(response: string, defaultDate: Date): Transaction[] {
   for (let i = 0; i < jsonList.length; i++) {
     const item = jsonList[i]
     if (!item || typeof item !== 'object') throw new ParseException(`第 ${i + 1} 条记录格式错误`)
-    // 兼容部分模型返回中文键名（如 deepseek 可能输出"描述"/"金额"/"类别"）
+    // 兼容部分模型返回中文键名（如模型可能输出"描述"/"金额"/"类别"）
     const desc = String(item.description ?? item.描述 ?? '').trim()
     const amountVal = item.amount ?? item.金额
     const category = item.category ?? item.类别
@@ -204,10 +203,8 @@ function parseResponse(response: string, defaultDate: Date): Transaction[] {
 export async function parseTransactions(
   input: string,
   date: Date,
-  model: ModelKey,
 ): Promise<Transaction[]> {
   const content = await chatCompletion({
-    model,
     systemPrompt: PARSE_SYSTEM_PROMPT,
     userPrompt: `记账描述：${input}\n默认日期：${normalizeDate(date)}`,
   })
@@ -217,7 +214,6 @@ export async function parseTransactions(
 export async function generateAiSummary(
   totalExpense: number,
   breakdown: Record<string, number>,
-  model: ModelKey,
 ): Promise<string> {
   const breakdownText = Object.entries(breakdown)
     .map(([k, v]) => `${k}：${v.toFixed(2)}元（${(v / totalExpense * 100).toFixed(1)}%）`)
@@ -233,10 +229,10 @@ export async function generateAiSummary(
 4. 语气友好自然，直接输出总结文字，不要任何前后缀`
 
   const content = await chatCompletion({
-    model,
     systemPrompt: REPORT_SYSTEM_PROMPT,
     userPrompt,
     timeout: 60000,
+    thinking: true,
   })
   return content.length > 150 ? content.substring(0, 150) : content
 }
