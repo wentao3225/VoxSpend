@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   visible: boolean
   title?: string
   message?: string
