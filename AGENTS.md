@@ -75,7 +75,7 @@ voxspend-web/
 │   ├── services/       # ai-service.ts（fetch 调用 AI API）
 │   ├── db/index.ts     # IndexedDB CRUD
 │   ├── views/          # 8 个页面组件
-│   ├── components/     # 5 个可复用组件
+│   ├── components/     # 6 个可复用组件
 │   ├── composables/    # 4 个 composable
 │   ├── utils/          # format / validation / style
 │   └── style.css       # 全局样式（Cupertino 设计令牌）
@@ -114,8 +114,8 @@ voxspend-web/
 ## 组件与页面约定
 
 - 所有页面用 `<script setup lang="ts">`，结构统一：`.page` → `PageHeader` → `.page-content`
-- 可复用组件：`PageHeader`（title/showBack + slots）、`LoadingButton`（loading/disabled/variant）、`TransactionItem`（列表项）、`CategoryPicker`（chips，支持 multiple）、`EmptyState`
-- 错误处理用原生 `alert()`/`confirm()`；AI 错误显示 `e.reason`（`ParseException`）
+- 可复用组件：`PageHeader`（title/showBack + slots）、`LoadingButton`（loading/disabled/variant）、`TransactionItem`（列表项）、`CategoryPicker`（chips，支持 multiple）、`EmptyState`、`ConfirmDialog`（确认弹窗，`v-model:visible` + `@confirm`/`@cancel`，`destructive` 红色确认按钮）
+- 错误处理用原生 `alert()`；**删除/危险操作确认用 `ConfirmDialog` 组件**（不要用原生 `confirm()`，避免浏览器原生弹窗）
 - 搜索用 `searchTransactions()` + 500ms 防抖
 
 ## 注意事项

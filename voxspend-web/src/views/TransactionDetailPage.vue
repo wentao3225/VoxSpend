@@ -10,6 +10,7 @@ import { getCategoryStyle } from '../utils/style'
 import PageHeader from '../components/PageHeader.vue'
 import CategoryPicker from '../components/CategoryPicker.vue'
 import DatePickerPanel from '../components/DatePickerPanel.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -21,6 +22,7 @@ const amountStr = ref('')
 const pendingCategory = ref('')
 const pendingDate = ref('')
 const showDatePicker = ref(false)
+const showDeleteDialog = ref(false)
 
 onMounted(async () => {
   const id = Number(route.params.id)
@@ -70,7 +72,6 @@ async function save() {
 
 async function doDelete() {
   if (!current.value?.id) return
-  if (!confirm('确定要删除这条账单吗？删除后无法恢复。')) return
   await deleteTransaction(current.value.id)
   router.back()
 }
@@ -148,9 +149,18 @@ function onDatePicked(v: string) {
       <div v-if="editing" class="card" style="margin-top:12px; padding:8px">
         <CategoryPicker v-model="pendingCategory" />
       </div>
-      <button v-if="!editing" class="btn btn-danger" style="margin-top:16px" @click="doDelete">
+      <button v-if="!editing" class="btn btn-danger" style="margin-top:16px" @click="showDeleteDialog = true">
         删除账单
       </button>
     </div>
+
+    <ConfirmDialog
+      v-model:visible="showDeleteDialog"
+      title="删除账单"
+      message="确定要删除这条账单吗？删除后无法恢复。"
+      confirm-text="删除"
+      destructive
+      @confirm="doDelete"
+    />
   </div>
 </template>
