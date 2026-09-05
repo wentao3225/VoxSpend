@@ -541,6 +541,7 @@ textarea.input-field {
   display: flex;
   align-items: center;
   padding: 11px 16px;
+  border: none;
   border-bottom: 0.5px solid var(--separator);
   cursor: pointer;
   background: none;

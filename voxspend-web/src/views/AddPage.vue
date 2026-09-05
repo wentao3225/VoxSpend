@@ -5,12 +5,13 @@ import { useAIConfig } from '../composables/useAIConfig'
 import { parseTransactions } from '../services/ai-service'
 import { formatDateDisplay } from '../utils/format'
 import { normalizeDate } from '../models/transaction'
+import { PARSE_MODEL } from '../models/ai-config'
 import PageHeader from '../components/PageHeader.vue'
 import LoadingButton from '../components/LoadingButton.vue'
 import DatePickerPanel from '../components/DatePickerPanel.vue'
 
 const router = useRouter()
-const { config, isReady } = useAIConfig()
+const { isReady } = useAIConfig()
 const input = ref('')
 const selectedDate = ref(new Date())
 const showDatePicker = ref(false)
@@ -33,7 +34,7 @@ async function doParse() {
   parsing.value = true
   errorMsg.value = ''
   try {
-    const txs = await parseTransactions(input.value.trim(), selectedDate.value, config.parseModel)
+    const txs = await parseTransactions(input.value.trim(), selectedDate.value, PARSE_MODEL)
     sessionStorage.setItem('pending_txs', JSON.stringify(txs))
     router.push('/confirm')
   } catch (e: any) {
