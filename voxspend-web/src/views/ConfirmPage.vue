@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Transaction } from '../models/transaction'
 import { addTransactions } from '../db'
@@ -13,7 +13,7 @@ const router = useRouter()
 const items = ref<Transaction[]>([])
 const { loading: saving, execute } = useAsyncAction()
 
-onMounted(() => {
+function loadPending() {
   const raw = sessionStorage.getItem('pending_txs')
   if (raw) {
     const parsed = JSON.parse(raw)
@@ -30,7 +30,11 @@ onMounted(() => {
   } else {
     router.replace('/add')
   }
-})
+}
+
+// keep-alive 缓存实例，第二次记账进入时 onMounted 不触发，用 onActivated 重读数据
+onMounted(loadPending)
+onActivated(loadPending)
 
 async function save() {
   for (let i = 0; i < items.value.length; i++) {

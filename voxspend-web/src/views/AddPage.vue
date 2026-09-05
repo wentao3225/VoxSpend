@@ -35,6 +35,8 @@ async function doParse() {
   try {
     const txs = await parseTransactions(input.value.trim(), selectedDate.value)
     sessionStorage.setItem('pending_txs', JSON.stringify(txs))
+    // keep-alive 会缓存本页输入，解析成功后清空，避免返回时残留旧描述导致重复记账
+    input.value = ''
     router.push('/confirm')
   } catch (e: any) {
     errorMsg.value = e.reason || '解析失败，请重试'

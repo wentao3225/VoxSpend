@@ -113,6 +113,7 @@ voxspend-web/
 ## 组件与页面约定
 
 - 首页（`HomePage.vue`）支持**按天浏览**：`viewDate` 状态 + `‹`/`›` 箭头切换前一天/后一天（不能切到未来），今天显示「今日账单/今日支出」，历史日期显示「账单明细/当日支出」；keep-alive 下用 `onActivated` 刷新当前查看日期的数据
+- **keep-alive 注意**：`App.vue` 把所有路由包在 `<keep-alive>` 里，组件实例跨路由复用、`onMounted` 只触发一次。依赖路由参数的页面（如 `TransactionDetailPage`）必须 `watch(() => route.params.id)` 重新加载；依赖 sessionStorage/外部数据的页面（如 `ConfirmPage`）必须用 `onActivated` 重读数据，否则会出现"点 A 显示 B"的脏数据。**已修复的页面**：详情页（watch id）、ConfirmPage（onActivated 重读 sessionStorage）、SearchPage（onActivated 重跑搜索，处理详情页删除/编辑后的过期结果）、WeeklyReportListPage（onActivated 刷新列表）、AddPage（解析成功后清空输入框，防止返回时残留旧描述重复记账）；HomePage（onActivated 刷新当日数据）
 - 所有页面用 `<script setup lang="ts">`，结构统一：`.page` → `PageHeader` → `.page-content`
 - 可复用组件：`PageHeader`（title/showBack + slots）、`LoadingButton`（loading/disabled/variant）、`TransactionItem`（列表项）、`CategoryPicker`（chips，支持 multiple）、`EmptyState`、`ConfirmDialog`（确认弹窗，`v-model:visible` + `@confirm`/`@cancel`，`destructive` 红色确认按钮）
 - 错误处理用原生 `alert()`；**删除/危险操作确认用 `ConfirmDialog` 组件**（不要用原生 `confirm()`，避免浏览器原生弹窗）

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { Transaction } from '../models/transaction'
 import { getAllTransactions, updateTransaction, deleteTransaction } from '../db'
@@ -24,8 +24,7 @@ const pendingDate = ref('')
 const showDatePicker = ref(false)
 const showDeleteDialog = ref(false)
 
-onMounted(async () => {
-  const id = Number(route.params.id)
+async function loadTransaction(id: number) {
   const all = await getAllTransactions()
   const found = all.find(t => t.id === id)
   if (!found) { router.back(); return }
@@ -34,6 +33,20 @@ onMounted(async () => {
   amountStr.value = found.amount.toString()
   pendingCategory.value = found.category
   pendingDate.value = found.date
+  // keep-alive 复用实例时重置编辑状态
+  editing.value = false
+  showDatePicker.value = false
+}
+
+onMounted(() => {
+  loadTransaction(Number(route.params.id))
+})
+
+// keep-alive 缓存组件实例，路由参数变化（A→B）时 onMounted 不触发，必须 watch
+watch(() => route.params.id, (newId, oldId) => {
+  if (newId && newId !== oldId && route.name === 'transaction-detail') {
+    loadTransaction(Number(newId))
+  }
 })
 
 function toggleEdit() {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onActivated } from 'vue'
 import type { Transaction } from '../models/transaction'
 import { searchTransactions } from '../db'
 import { useTransactionNavigation } from '../composables/useTransactionNavigation'
@@ -132,6 +132,11 @@ function clearAmount() {
 }
 
 watch(keyword, () => doSearch())
+
+// keep-alive 缓存实例：从详情页返回时账单可能已被删除/编辑，重跑搜索刷新结果
+onActivated(() => {
+  if (hasFilter.value || keyword.value) doSearch()
+})
 </script>
 
 <template>

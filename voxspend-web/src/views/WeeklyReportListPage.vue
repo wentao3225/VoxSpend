@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import type { WeeklyReport } from '../models/weekly-report'
 import { getAllWeeklyReports, deleteWeeklyReport } from '../db'
@@ -13,9 +13,13 @@ const reports = ref<WeeklyReport[]>([])
 const showDeleteDialog = ref(false)
 const pendingDelete = ref<WeeklyReport | null>(null)
 
-onMounted(async () => {
+async function loadReports() {
   reports.value = await getAllWeeklyReports()
-})
+}
+
+onMounted(loadReports)
+// keep-alive 缓存实例：重新进入时刷新列表（周报可能已新增/删除）
+onActivated(loadReports)
 
 function viewReport(r: WeeklyReport) {
   router.push({ name: 'weekly-report', query: { data: JSON.stringify(r) } })
