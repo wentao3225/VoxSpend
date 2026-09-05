@@ -312,11 +312,132 @@ textarea.input-field {
   color: var(--text-primary);
 }
 
+/* 筛选按钮激活态：已设置筛选条件时高亮 */
+.filter-btn-active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(0, 122, 255, 0.06);
+}
+
 /* 搜索栏内的重置按钮：与 filter-btn 同风格，紧凑不换行 */
 .reset-btn {
   flex-shrink: 0;
   color: var(--primary);
   font-weight: 500;
+}
+
+/* 筛选面板（日期/金额范围） */
+.filter-panel {
+  margin: 0 16px 8px;
+  padding: 12px 14px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.filter-panel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.filter-panel-row:last-of-type {
+  margin-bottom: 12px;
+}
+
+.filter-label {
+  width: 34px;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.filter-date-input,
+.filter-amount-input {
+  flex: 1;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.filter-date-input:focus,
+.filter-amount-input:focus {
+  border-color: var(--primary);
+}
+
+.filter-panel-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-action-btn {
+  flex: 1;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.filter-action-btn:active {
+  opacity: 0.7;
+}
+
+.filter-action-btn.clear {
+  background: rgba(118, 118, 128, 0.12);
+  color: var(--text-primary);
+}
+
+.filter-action-btn.apply {
+  background: var(--primary);
+  color: white;
+}
+
+/* 日期选择面板（记账页/详情页） */
+.date-picker-panel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 16px 12px;
+  padding: 12px 14px;
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.date-picker-panel .filter-date-input {
+  flex: 1;
+  height: 40px;
+  background: var(--bg);
+}
+
+.date-picker-cancel {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(118, 118, 128, 0.12);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.date-picker-cancel:active {
+  opacity: 0.7;
 }
 
 /* Category Chips */
@@ -363,6 +484,44 @@ textarea.input-field {
 
 .search-input::placeholder {
   color: var(--text-secondary);
+}
+
+/* 搜索 loading */
+.search-spinner {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  border: 2px solid rgba(0, 122, 255, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+.search-spinner-lg {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+.search-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 0;
+}
+
+.search-loading-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* 搜索中：旧结果列表变暗且不可交互，避免闪烁 */
+.searching-dim {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.2s;
 }
 
 /* Settings List */

@@ -2,26 +2,23 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAIConfig } from '../composables/useAIConfig'
-import { useDatePicker } from '../composables/useDatePicker'
 import { parseTransactions } from '../services/ai-service'
 import { formatDateDisplay } from '../utils/format'
+import { normalizeDate } from '../models/transaction'
 import PageHeader from '../components/PageHeader.vue'
 import LoadingButton from '../components/LoadingButton.vue'
+import DatePickerPanel from '../components/DatePickerPanel.vue'
 
 const router = useRouter()
 const { config, isReady } = useAIConfig()
-const { pickDate } = useDatePicker()
 const input = ref('')
 const selectedDate = ref(new Date())
+const showDatePicker = ref(false)
 const parsing = ref(false)
 const errorMsg = ref('')
 
-function openDatePicker() {
-  pickDate({
-    defaultValue: selectedDate.value,
-    maxDate: new Date(),
-    onPick: (d) => { selectedDate.value = d },
-  })
+function onDatePicked(v: string) {
+  selectedDate.value = new Date(v + 'T00:00:00')
 }
 
 async function doParse() {
@@ -51,7 +48,7 @@ async function doParse() {
   <div class="page">
     <PageHeader title="记一笔" :show-back="true" />
     <div class="page-content">
-      <div class="card" style="padding:14px 16px; margin-bottom:16px; cursor:pointer" @click="openDatePicker">
+      <div class="card" style="padding:14px 16px; margin-bottom:12px; cursor:pointer" @click="showDatePicker = !showDatePicker">
         <div style="display:flex; align-items:center; gap:10px">
           <span style="color:var(--primary)">📅</span>
           <span>记账日期</span>
@@ -60,6 +57,12 @@ async function doParse() {
           <span style="color:#C7C7CC">›</span>
         </div>
       </div>
+      <DatePickerPanel
+        v-model:visible="showDatePicker"
+        :model-value="normalizeDate(selectedDate)"
+        :max="normalizeDate(new Date())"
+        @update:model-value="onDatePicked"
+      />
       <div class="card" style="padding:14px">
         <textarea
           v-model="input"

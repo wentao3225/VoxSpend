@@ -4,15 +4,15 @@ import { useRouter, useRoute } from 'vue-router'
 import type { Transaction } from '../models/transaction'
 import { getAllTransactions, updateTransaction, deleteTransaction } from '../db'
 import { formatCurrency } from '../utils/format'
-import { useDatePicker } from '../composables/useDatePicker'
+import { normalizeDate } from '../models/transaction'
 import { useAsyncAction } from '../composables/useAsyncAction'
 import { getCategoryStyle } from '../utils/style'
 import PageHeader from '../components/PageHeader.vue'
 import CategoryPicker from '../components/CategoryPicker.vue'
+import DatePickerPanel from '../components/DatePickerPanel.vue'
 
 const router = useRouter()
 const route = useRoute()
-const { pickDate } = useDatePicker()
 const { loading: saving, execute } = useAsyncAction()
 const current = ref<Transaction | null>(null)
 const editing = ref(false)
@@ -20,6 +20,7 @@ const desc = ref('')
 const amountStr = ref('')
 const pendingCategory = ref('')
 const pendingDate = ref('')
+const showDatePicker = ref(false)
 
 onMounted(async () => {
   const id = Number(route.params.id)
@@ -75,11 +76,11 @@ async function doDelete() {
 }
 
 function openDatePicker() {
-  pickDate({
-    defaultValue: new Date(pendingDate.value + 'T00:00:00'),
-    maxDate: new Date(),
-    onPick: (d) => { pendingDate.value = d.toISOString().split('T')[0] },
-  })
+  showDatePicker.value = !showDatePicker.value
+}
+
+function onDatePicked(v: string) {
+  pendingDate.value = v
 }
 </script>
 
@@ -137,6 +138,13 @@ function openDatePicker() {
           </div>
         </div>
       </div>
+      <DatePickerPanel
+        v-if="editing"
+        v-model:visible="showDatePicker"
+        :model-value="pendingDate"
+        :max="normalizeDate(new Date())"
+        @update:model-value="onDatePicked"
+      />
       <div v-if="editing" class="card" style="margin-top:12px; padding:8px">
         <CategoryPicker v-model="pendingCategory" />
       </div>
