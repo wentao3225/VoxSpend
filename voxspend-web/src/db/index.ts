@@ -181,4 +181,14 @@ export async function getAllWeeklyReports(): Promise<WeeklyReport[]> {
   })
 }
 
+export async function deleteWeeklyReport(id: number): Promise<void> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('weeklyReports', 'readwrite')
+    tx.objectStore('weeklyReports').delete(id)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 // Settings (removed - API key via .env, model config in ai-config.ts)

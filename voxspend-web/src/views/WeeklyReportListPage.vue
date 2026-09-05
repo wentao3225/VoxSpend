@@ -2,13 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { WeeklyReport } from '../models/weekly-report'
-import { getAllWeeklyReports } from '../db'
+import { getAllWeeklyReports, deleteWeeklyReport } from '../db'
 import { formatCurrency } from '../utils/format'
 import PageHeader from '../components/PageHeader.vue'
 import EmptyState from '../components/EmptyState.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
 const reports = ref<WeeklyReport[]>([])
+const showDeleteDialog = ref(false)
+const pendingDelete = ref<WeeklyReport | null>(null)
 
 onMounted(async () => {
   reports.value = await getAllWeeklyReports()
@@ -16,6 +19,18 @@ onMounted(async () => {
 
 function viewReport(r: WeeklyReport) {
   router.push({ name: 'weekly-report', query: { data: JSON.stringify(r) } })
+}
+
+function askDelete(r: WeeklyReport) {
+  pendingDelete.value = r
+  showDeleteDialog.value = true
+}
+
+async function doDelete() {
+  if (!pendingDelete.value?.id) return
+  await deleteWeeklyReport(pendingDelete.value.id)
+  reports.value = await getAllWeeklyReports()
+  pendingDelete.value = null
 }
 </script>
 
@@ -42,8 +57,22 @@ function viewReport(r: WeeklyReport) {
             <div class="tx-meta">{{ r.aiSummary.slice(0, 30) }}...</div>
           </div>
           <div class="tx-amount">{{ formatCurrency(r.totalExpense) }}</div>
+          <button
+            class="tx-delete"
+            @click.stop="askDelete(r)"
+            aria-label="删除周报"
+          >🗑️</button>
         </div>
       </template>
     </div>
+
+    <ConfirmDialog
+      v-model:visible="showDeleteDialog"
+      title="删除周报"
+      :message="`确定要删除 ${pendingDelete?.weekStartDate} ~ ${pendingDelete?.weekEndDate} 的周报吗？删除后无法恢复。`"
+      confirm-text="删除"
+      destructive
+      @confirm="doDelete"
+    />
   </div>
 </template>

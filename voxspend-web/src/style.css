@@ -200,6 +200,21 @@ html, body {
   flex-shrink: 0;
 }
 
+.tx-delete {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.tx-delete:active {
+  opacity: 1;
+}
+
 /* Category Badge */
 .category-badge {
   display: inline-flex;

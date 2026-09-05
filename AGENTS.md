@@ -103,7 +103,7 @@ voxspend-web/
 - DB `voxspend` v1，单例 `dbInstance`
 - **transactions** store：keyPath `id`（autoIncrement），索引 `date`/`category`/`createdAt`
 - **weeklyReports** store：keyPath `id`（autoIncrement），索引 `weekStartDate`（**unique**）
-- 关键函数：`getTransactionsByDate`、`addTransactions`（批量，剥离不可克隆属性、不传 id）、`updateTransaction`、`deleteTransaction`、`getAllTransactions`、`searchTransactions`（内存过滤）、`getTransactionsBetween`、`getWeeklyReport`/`saveWeeklyReport`/`getAllWeeklyReports`
+- 关键函数：`getTransactionsByDate`、`addTransactions`（批量，剥离不可克隆属性、不传 id）、`updateTransaction`、`deleteTransaction`、`getAllTransactions`、`searchTransactions`（内存过滤）、`getTransactionsBetween`、`getWeeklyReport`/`saveWeeklyReport`/`getAllWeeklyReports`/`deleteWeeklyReport`
 
 ## 跨页数据流（重要约定）
 
