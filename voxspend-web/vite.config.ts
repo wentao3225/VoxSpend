@@ -1,52 +1,17 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      // 浏览器开发环境转发 AI 请求（商汤不支持 CORS）；APK 内走 CapacitorHttp 不经过这里
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'https://token.sensenova.cn',
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },
-  plugins: [
-    vue(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
-      manifest: {
-        name: 'VoxSpend 记账',
-        short_name: 'VoxSpend',
-        description: 'AI 智能记账助手 - 用自然语言记录消费',
-        theme_color: '#007AFF',
-        background_color: '#F2F2F7',
-        display: 'standalone',
-        start_url: '/',
-        icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /\/api\//,
-            handler: 'NetworkOnly',
-          },
-        ],
-      },
-    }),
-  ],
+  plugins: [vue()],
 })

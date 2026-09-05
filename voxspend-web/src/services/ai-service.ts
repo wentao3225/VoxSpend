@@ -1,4 +1,6 @@
-import { AI_API_URL } from '../models/ai-config'
+import { CapacitorHttp } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
+import { AI_API_URL_NATIVE, AI_API_URL_WEB } from '../models/ai-config'
 import type { ModelKey } from '../models/ai-config'
 import type { Transaction } from '../models/transaction'
 import { normalizeCategory, normalizeDate } from '../models/transaction'
@@ -38,32 +40,56 @@ async function chatCompletion(opts: {
   userPrompt: string
   timeout?: number
 }): Promise<string> {
-  // 推理模型生成较慢（实测可达 35s+），超时对齐后端代理 60s
+  // 记账解析/周报是简单任务，关闭思考模式（reasoning_effort: none）提升速度
   const { model, systemPrompt, userPrompt, timeout = 60000 } = opts
   const apiKey = getApiKey()
+  const reqBody = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    temperature: 0.2,
+    reasoning_effort: 'none',
+  }
   try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeout)
-    const res = await fetch(AI_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.2,
-      }),
-      signal: controller.signal,
-    })
-    clearTimeout(timer)
-    if (res.status === 401) throw new ParseException('API Key 无效，请检查 .env 配置')
-    if (!res.ok) throw new ParseException(`AI 服务返回错误（${res.status}），请重试`)
-    const body = await res.json()
+    let status: number
+    let body: any
+
+    if (Capacitor.isNativePlatform()) {
+      // 原生环境：CapacitorHttp 走原生网络栈，无 CORS 限制，直连商汤
+      const res = await CapacitorHttp.post({
+        url: AI_API_URL_NATIVE,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        data: reqBody,
+        connectTimeout: timeout,
+        readTimeout: timeout,
+      })
+      status = res.status
+      body = typeof res.data === 'string' ? safeJsonParse(res.data) : res.data
+    } else {
+      // 浏览器环境：走 /api 相对路径，由 Vite dev proxy 转发
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeout)
+      const res = await fetch(AI_API_URL_WEB, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reqBody),
+        signal: controller.signal,
+      })
+      clearTimeout(timer)
+      status = res.status
+      body = await res.json()
+    }
+
+    if (status === 401) throw new ParseException('API Key 无效，请检查 .env 配置')
+    if (status < 200 || status >= 300) throw new ParseException(`AI 服务返回错误（${status}），请重试`)
     console.log('[AI Service] Response:', JSON.stringify(body).slice(0, 500))
     const choices = body.choices as any[]
     if (!choices?.length) throw new ParseException('AI 返回内容为空，请重试')
@@ -77,6 +103,14 @@ async function chatCompletion(opts: {
       throw new ParseException('网络连接超时，请检查网络后重试')
     }
     throw new ParseException('AI 请求失败，请重试')
+  }
+}
+
+function safeJsonParse(text: string): any {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return {}
   }
 }
 

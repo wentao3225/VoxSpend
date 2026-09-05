@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-VoxSpend — Vue 3 + Vite + TypeScript PWA 记账应用，AI 语音/文字记账，离线优先。
+VoxSpend — Vue 3 + Vite + TypeScript 记账应用（Capacitor 打包 Android APK），AI 语音/文字记账，离线优先。
 
 ## 技术栈
 
@@ -11,9 +11,8 @@ VoxSpend — Vue 3 + Vite + TypeScript PWA 记账应用，AI 语音/文字记账
 | 框架 | Vue 3.5 + TypeScript 6 |
 | 构建 | Vite 6 |
 | 数据库 | IndexedDB（浏览器） |
-| PWA | vite-plugin-pwa（Service Worker） |
-| 后端 | Express 5（`server.cjs`，代理 AI API） |
-| AI | 商汤日日新（`token.sensenova.cn`），OpenAI 兼容协议 |
+| 打包 | Capacitor 8（Android APK） |
+| AI | 商汤日日新（`token.sensenova.cn`），OpenAI 兼容协议，前端直连 |
 | 样式 | 纯 CSS，Cupertino 风格 |
 
 ## 命令
@@ -21,9 +20,8 @@ VoxSpend — Vue 3 + Vite + TypeScript PWA 记账应用，AI 语音/文字记账
 ```bash
 cd voxspend-web
 npm install --legacy-peer-deps   # 必须加 --legacy-peer-deps
-npm run dev                       # 同时启动 Express(3000) + Vite(5173)
+npm run dev                       # Vite dev server (5173)
 npm run build                     # vue-tsc + vite build → dist/
-npm run start                     # 生产模式：Express 3000 提供 dist/ + 代理 AI API
 npx vue-tsc --noEmit              # 仅类型检查
 ```
 
@@ -35,22 +33,19 @@ npx vue-tsc --noEmit              # 仅类型检查
 
 ## 架构要点
 
-### 双启动模式
+### AI 请求链路（按环境分流）
 
-| 模式 | 命令 | Express | Vite | 用途 |
-|------|------|---------|------|------|
-| 开发 | `npm run dev` | `localhost:3000`（API 代理） | `localhost:5173`（HMR） | 开发调试 |
-| 生产 | `npm run start` | `localhost:3000`（静态文件 + API） | 无 | 部署运行 |
+`token.sensenova.cn` **不支持浏览器 CORS**（OPTIONS 预检返回 404，浏览器拦截），因此按环境分流（`ai-service.ts`）：
 
-### AI 请求链路
+| 环境 | 通道 | URL |
+|------|------|-----|
+| Android APK（原生） | `CapacitorHttp`（`@capacitor/core` 内置，走原生网络栈，**无 CORS 限制**） | `https://token.sensenova.cn/v1/chat/completions`（`AI_API_URL_NATIVE`） |
+| 浏览器开发 | `fetch` + Vite dev proxy | `/api/v1/chat/completions`（`AI_API_URL_WEB`）→ Vite 转发到商汤 |
 
-```
-浏览器 → fetch('/api/v1/chat/completions')
-       → Vite dev proxy (开发) 或 Express (生产)
-       → token.sensenova.cn (服务端，无 CORS 问题)
-```
-
-`token.sensenova.cn` **不支持浏览器 CORS**，必须通过 Express 代理。`vite.config.ts` 中配置了 `/api` → `localhost:3000` 的 dev proxy。
+- 判断方式：`Capacitor.isNativePlatform()`；原生响应 `res.data` 可能是字符串，用 `safeJsonParse()` 兜底
+- Vite proxy 配置在 `vite.config.ts`（`/api` → `https://token.sensenova.cn`，rewrite 去掉 `/api` 前缀），**仅 dev server 生效**，与构建产物无关
+- 项目**无后端**：不需要 Express，APK 完全独立运行
+- API Key 通过 `Authorization: Bearer` 头直接发送（个人应用可接受）
 
 ### AI 模型
 
@@ -58,23 +53,19 @@ npx vue-tsc --noEmit              # 仅类型检查
 - `sensenova-6.8-flash-lite` — 周报默认模型
 - `deepseek-v4-flash` — 解析默认模型（更快更稳）
 
+**思考模式**：`deepseek-v4-flash` 默认启用思考（响应含 `reasoning_content` 字段，拖慢速度）。请求体加 `reasoning_effort: 'none'` 关闭（可选 `low`/`medium`/`high`，默认 `medium`）。`ai-service.ts` 的 `chatCompletion()` 已统一加此参数。
+
 解析和周报使用**不同模型**，可在设置页分别选择，存储在 localStorage（key `voxspend_model_config`）。`ai-config.ts` 中有自动迁移逻辑：旧默认 `sensenova` 解析模型会自动迁移到 `deepseek-v4-flash`（只迁移一次，标记 `voxspend_model_migrated_v2`）。
 
-### PWA Service Worker
+### PWA 已移除
 
-- workbox 配置中 `/api/` 路径设为 `NetworkOnly`，**不缓存 AI 请求**
-- 如果浏览器缓存了旧的失败响应，需手动清除：DevTools → Application → Service Workers → Unregister
-
-### Express 5 注意
-
-SPA fallback 路由必须用 `app.get('/{*splat}')`，不能用 `app.get('*')`（Express 5 breaking change）。
+- 原先的 vite-plugin-pwa（Service Worker + manifest）已删除：应用走 Capacitor APK 分发，SW 在 WebView 里只会缓存旧资源导致更新不生效
+- `vite.config.ts` 现在只有 `vue()` 插件；`index.html` 无 SW 注册代码
 
 ## 项目结构
 
 ```
 voxspend-web/
-├── server.cjs          # Express：静态文件 + API 代理（端口 3000）
-├── dev.cjs             # 开发启动器：同时启 Express + Vite
 ├── capacitor.config.ts # Capacitor 8，appId cn.voxspend.app，webDir dist/
 ├── src/
 │   ├── main.ts         # 入口
@@ -88,7 +79,7 @@ voxspend-web/
 │   ├── composables/    # 4 个 composable
 │   ├── utils/          # format / validation / style
 │   └── style.css       # 全局样式（Cupertino 设计令牌）
-├── vite.config.ts      # Vite + PWA + dev proxy
+├── vite.config.ts      # Vite（仅 vue 插件）
 ├── .env                # API Key（不提交）
 └── .env.example        # 模板
 ```
@@ -130,10 +121,9 @@ voxspend-web/
 ## 注意事项
 
 - `npm install` 必须加 `--legacy-peer-deps`
-- 构建产物在 `dist/`，部署到任意静态服务器 + Express 即可
-- PWA 图标需在 `public/` 下放 `pwa-192x192.png` 和 `pwa-512x512.png`
+- 构建产物在 `dist/`，通过 `npx cap sync android` 同步进 Android 工程
 - 数据仅存本地（IndexedDB），无后端数据库
-- AI API 调用 60s 超时（前端 + Express 均为 60s）
+- AI API 调用 60s 超时（前端 fetch AbortController）
 - **AI 解析健壮性**：`ai-service.ts` 的 `extractJsonList()` 有多层兜底（直接解析 → 截取 `[...]` → 截取 `{...}` → 循环解码多段 JSON），兼容中文键名（`描述`/`金额`/`类别`）；解析时每条 `createdAt = baseTime + i` 保证唯一
 - **已知坑**：部分组件 scoped style 引用了 `:root` 未定义的 CSS 变量（`--bg-secondary`、`--label-*`、`--system-green`、`--bg-card`），改动样式前先确认变量是否已定义
-- **已知坑**：Android 原生 WebView 中 `/api` 相对路径不走 Vite dev proxy 或 Express 代理，AI 调用在原生环境可能失效（除非配置服务器地址）
+- **已解决**：Android 原生 WebView 的 AI 调用问题——原生环境用 `CapacitorHttp` 直连商汤（绕过 CORS），浏览器开发用 Vite dev proxy（`/api`）。**教训**：`token.sensenova.cn` 的 OPTIONS 预检虽返回 CORS 头但状态码是 404，浏览器要求预检必须 2xx，所以它**不支持浏览器 CORS**，不能直接 fetch 跨域
